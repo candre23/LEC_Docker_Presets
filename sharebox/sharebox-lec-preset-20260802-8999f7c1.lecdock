@@ -1,0 +1,128 @@
+{
+  "format_version": 1,
+  "id": "io.github.ohugonnot.sharebox",
+  "name": "ShareBox",
+  "type": "compose",
+  "description": "Deploy ShareBox, a lightweight self-hosted media streaming and file-sharing server. The application is built directly from the official GitHub repository, stores ShareBox state in a persistent Docker volume, and mounts the selected media directory read-only.",
+  "homepage": "https://github.com/ohugonnot/sharebox",
+  "fields": [
+    {
+      "id": "application_name",
+      "label": "Application name",
+      "type": "text",
+      "default": "sharebox",
+      "required": true,
+      "help": "Used for the Compose project and container name."
+    },
+    {
+      "id": "media_path",
+      "label": "Media directory",
+      "type": "text",
+      "default": "/srv/media",
+      "required": true,
+      "placeholder": "/srv/media",
+      "help": "Existing host directory containing media. It is mounted read-only at /media inside ShareBox."
+    },
+    {
+      "id": "host_port",
+      "label": "Host web port",
+      "type": "port",
+      "default": 8080,
+      "required": true
+    },
+    {
+      "id": "access_scope",
+      "label": "Network access",
+      "type": "choice",
+      "default": "localhost",
+      "choices": [
+        {
+          "label": "Local or reverse proxy only (recommended)",
+          "value": "localhost"
+        },
+        {
+          "label": "Local network",
+          "value": "local_network"
+        },
+        {
+          "label": "All networks (not recommended)",
+          "value": "all_networks"
+        }
+      ]
+    },
+    {
+      "id": "allow_firewall",
+      "label": "Create local-network Firewall rule",
+      "type": "boolean",
+      "default": true,
+      "help": "Used only when Network access is Local network."
+    },
+    {
+      "id": "publish_reverse_proxy",
+      "label": "Publish through Reverse Proxy",
+      "type": "boolean",
+      "default": false,
+      "help": "Forces Local or reverse proxy only access and creates a Caddy route."
+    },
+    {
+      "id": "public_host",
+      "label": "Public hostname",
+      "type": "text",
+      "default": "",
+      "placeholder": "sharebox.example.com",
+      "help": "Required only when publishing through Reverse Proxy."
+    },
+    {
+      "id": "proxy_login",
+      "label": "Require an additional Caddy login",
+      "type": "boolean",
+      "default": false,
+      "help": "Normally leave this disabled. ShareBox already protects /share with its own admin login, while /dl links are intended to be public or protected individually by ShareBox."
+    },
+    {
+      "id": "admin_user",
+      "label": "ShareBox admin username",
+      "type": "text",
+      "default": "admin",
+      "required": true
+    },
+    {
+      "id": "admin_password",
+      "label": "ShareBox admin password",
+      "type": "password",
+      "default": "",
+      "generate": "password",
+      "required": true,
+      "help": "LEC generates a strong password automatically. It is stored in the application's protected .env file."
+    },
+    {
+      "id": "tmdb_api_key",
+      "label": "TMDB API key",
+      "type": "password",
+      "default": "",
+      "required": false,
+      "help": "Optional. Enables TMDB poster metadata in the ShareBox grid."
+    },
+    {
+      "id": "stream_max_concurrent",
+      "label": "Maximum simultaneous transcodes",
+      "type": "integer",
+      "default": 4,
+      "required": true,
+      "help": "Maximum number of simultaneous ffmpeg processes. ShareBox defaults to 4."
+    }
+  ],
+  "compose": {
+    "environment": [
+      "admin_password",
+      "tmdb_api_key"
+    ],
+    "template": "services:\n  sharebox:\n    build:\n      context: https://github.com/ohugonnot/sharebox.git#master\n    container_name: {{application_name}}\n    restart: unless-stopped\n    environment:\n      SHAREBOX_ADMIN_USER: \"{{admin_user}}\"\n      SHAREBOX_ADMIN_PASS: \"${ADMIN_PASSWORD}\"\n      SHAREBOX_MEDIA_DIR: \"/media/\"\n      SHAREBOX_TMDB_API_KEY: \"${TMDB_API_KEY}\"\n      SHAREBOX_DEMO_DATA: \"false\"\n      SHAREBOX_STREAM_MAX_CONCURRENT: \"{{stream_max_concurrent}}\"\n      SHAREBOX_STREAM_REMUX_ENABLED: \"false\"\n    ports:\n      - \"{{bind_address}}:{{host_port}}:80\"\n    volumes:\n      - sharebox_data:/data\n      - \"{{media_path}}:/media:ro\"\n\nvolumes:\n  sharebox_data:\n"
+  },
+  "service": {
+    "protocol": "http",
+    "transport_protocol": "tcp",
+    "container_port": 80,
+    "reverse_proxy_compatible": true
+  }
+}
